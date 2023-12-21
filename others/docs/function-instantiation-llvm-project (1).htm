@@ -1,0 +1,957 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html><head></head><body>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="WordSection1">
+
+<h1 align="center" style="text-align:center;"><span style="font-size:16.0pt;font-family:&quot;Lucida Handwriting&quot;;">DOCUMENTATION
+FOR THE LLVM PROJECT</span><span></span></h1>
+
+<p class="MsoNormal" style="text-align:justify;"><b><span style="font-size:14.0pt;font-family:&quot;Lucida Handwriting&quot;;">INTRODUCTION AND PROBLEM STATEMENT </span></b></p>
+
+<p style="text-align:justify;">LLVM is the name of a compiler that began as a research
+project in UIUC and is now maintained at Apple. Its main website is located <a rel="noopener" href="http://www.llvm.org/" target="_blank">here</a>.&#160; LLVM is <span class="GramE">open-source</span> software, and has been installed in <span class="SpellE">Projectsstu</span> (Linux) for use in this class project. </p>
+
+<p style="text-align:justify;">The goal of this project is to implement <i>function
+argument instantiation</i> wherever one or more of the actual arguments of a
+function are constants at their call sites.&#160;&#160; For example, consider
+the following simple C code:</p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">main () {</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;text-indent:
+.5in;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">int a = 5, b
+= <span class="GramE">10;</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;text-indent:
+.5in;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">int diff1,
+diff2, <span class="GramE">diff3;</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;text-indent:
+.5in;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">diff1 = <span class="GramE">sub(</span>a, b);</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;text-indent:
+.5in;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">diff2 = <span class="GramE">sub(</span>100, b);</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;text-indent:
+.5in;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">diff3 = <span class="GramE">sub(</span>24, 25);</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;text-indent:
+.5in;"><span class="SpellE"><span class="GramE"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">printf</span></span></span><span class="GramE"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">(</span></span><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">&#226;€œdiff1 = %d, diff2 =
+%d, diff3 = %d\n&#226;€, diff1, diff2 diff3);</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">}</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">int <span class="GramE">sub(</span>int
+x, int y) {</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">&#160;&#160;&#160;&#160;
+return x - <span class="GramE">y;</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">}</span></p>
+
+<p style="text-align:justify;">The above C code needs to be transformed into:</p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Co䍴nsole&quot;,serif;">main () {</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;text-indent:
+.5in;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">int a = 5, b
+= <span class="GramE">10;</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;text-indent:
+.5in;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">int diff1,
+diff2, <span class="GramE">diff3;</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;text-indent:
+.5in;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">diff1 = <span class="GramE">sub(</span>a, b);</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;text-indent:
+.5in;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">diff2 =
+sub1(b<span class="GramE">);</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;text-indent:
+.5in;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">diff3 = sub<span class="GramE">2( )</span>;</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;text-indent:
+.5in;"><span class="SpellE"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">printf</span></span><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;"> (&#226;€œdiff1 = %d, diff2 =
+%d, diff3 = %d\n&#226;€, diff1, diff2, diff3<span class="GramE">);</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">}</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">int <span class="GramE">sub(</span>int
+x, int y) {</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">&#160;&#160;&#160;&#160;
+return x - <span class="GramE">y;</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">}</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">int sub1(int y) {</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">&#160;&#160;&#160;&#160;
+int x = <span class="GramE">100;</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">&#160;&#160;&#160;&#160;
+return x - <span class="GramE">y;</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">}</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">int sub<span class="GramE">2(
+)</span> {</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">&#160;&#160;&#160;&#160;
+int x = 24, y = <span class="GramE">25;</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">&#160;&#160;&#160;&#160;
+return x - <span class="GramE">y;</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">}</span></p>
+
+<p class="MsoNoSpacing" style="text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">&#160;</span></p>
+
+<p class="MsoNoSpacing" style="text-align:justify;">Whenever one or more arguments
+to a function are constants at a call site, instantiate the function definition
+by defining a new function with the constant arguments removed from the
+argument list and defined inside the function as local variables. Then, replace
+the original function at the call site with the new instantiated function.
+Note, the instantiated function will have the same functionality as the
+original function, but with the constant arguments being converted into local
+variables. In the example above, the statement <span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">diff2 = <span class="GramE">sub(</span>100, b</span>)
+is converted into the statement <span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">diff2
+= sub1(b)</span> and a new instantiated function <span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">sub1(int y)</span> is defined.</p>
+
+<p style="text-align:justify;">Ideally, to prevent code bloat, it would make
+sense to reuse the instantiated function definitions whenever possible.
+However, in this project, for the sake of simplicity, create a new instantiated
+function definition each time a function call with constant arguments is
+encountered. For example, the code </p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">main () {</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;text-indent:
+.5in;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">int a = 5, b
+= <span class="GramE">10;</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;text-indent:
+.5in;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">int diff1,
+diff2, <span class="GramE">diff3;</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;text-indent:
+.5in;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">diff1 = <span class="GramE">sub(</span>100, a);</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;text-indent:
+.5in;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">diff2 = <span class="GramE">sub(</span>100, b);</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;text-indent:
+.5in;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">diff3 = <span class="GramE">sub(</span>24, 25);</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;text-indent:
+.5in;"><span class="SpellE"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">printf</span></span><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;"> (&#226;€œdiff1 = %d, diff2 =
+%d, diff3 = %d\n&#226;€, diff1, diff2 diff3<span class="GramE">);</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">}</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">int sub (int x, int y) {</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">&#160;&#160;&#160;&#160;
+return x - <span class="GramE">y;</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">}</span></p>
+
+<p style="text-align:justify;">can be transformed into the code below even
+though sub1 and sub2 function definitions are duplicates. This is done purely
+for the sake of simplicity. </p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">main () {</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;text-indent:
+.5in;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">int a = 5, b
+= <span class="GramE">10;</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;text-indent:
+.5in;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">int diff1,
+diff2, <span class="GramE">diff3;</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;text-indent:
+.5in;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">diff1 =
+sub1(a<span class="GramE">);</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;text-indent:
+.5in;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">diff2 =
+sub2(b<span class="GramE">);</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;text-indent:
+.5in;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">diff3 = sub<span class="GramE">3( )</span>;</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;text-indent:
+.5in;"><span class="SpellE"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">printf</span></span><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;"> (&#226;€œdiff1 = %d, diff2 = %d,
+diff3 = %d\n&#226;€, diff1, diff2, diff3<span class="GramE">);</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">}</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">int <span class="GramE">sub(</span>int
+x, int y) {</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">&#160;&#160;&#160;&#160;
+return x - <span class="GramE">y;</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">}</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">int sub1(int y) {</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">&#160;&#160;&#160;&#160;
+x = <span class="GramE">100;</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">&#160;&#160;&#160;&#160;
+return x - <span class="GramE">y;</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">}</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">int sub2(int y) {</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">&#160;&#160;&#160;&#160;
+x = <span class="GramE">100;</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">&#160;&#160;&#160;&#160;
+return x - <span class="GramE">y;</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">&#160;</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">int sub<span class="GramE">3(
+)</span> {</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">&#160;&#160;&#160;&#160;
+int x = 24, y = <span class="GramE">25;</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">&#160;&#160;&#160;&#160;
+return x - <span class="GramE">y;</span></span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">}</span></p>
+
+<p class="MsoNoSpacing" style="margin-left:.5in;text-align:justify;"><span style="font-size:11.0pt;font-family:&quot;Lucida Console&quot;;">&#160;</span></p>
+
+<p class="MsoNoSpacing" style="text-align:justify;">All transformations in LLVM
+are performed on the intermediate representation (IR) of the code. The C code
+will be translated by LLVM automatically to internally use single static
+assignment (SSA) form, which will be discussed later in class.&#160; For now,
+suffice it to say that SSA translates code such that every variable is defined
+(assigned) only <span class="GramE">once;</span> thus the name.</p>
+
+<p style="text-align:justify;">Your goal is to write a <i>function argument
+instantiation</i> pass in LLVM that automatically performs the above
+transformation on any program provided to LLVM. Your pass itself will work on
+LLVM IR provided as input, and produce modified LLVM IR as output, allowing
+easy integration into the existing LLVM compiler. To do so, you must become
+familiar with LLVM.&#160; Please follow the steps in the rest of this document
+to achieve this.</p>
+
+<p class="MsoNormal" style="text-align:justify;"><b><span style="font-size:14.0pt;font-family:&quot;Lucida Handwriting&quot;;">COLLABORATION POLICY</span></b></p>
+
+<p style="text-align:justify;">This project should be done by students in groups
+of two each.&#160; That arrangement is ideal since one member of a team might get
+stuck by themselves, and collaboration can help solve this problem, and
+encourages learning.&#160; When doing the project in groups, both students are
+expected to be knowledgeable with all aspects of the project. </p>
+
+<p class="MsoNormal" style="text-align:justify;"><b><span style="font-size:14.0pt;font-family:&quot;Lucida Handwriting&quot;;">THINGS TO SUBMIT</span></b></p>
+
+<p style="text-align:justify;">The project should be uploaded electronically on
+the class website (the elms/canvas site). The deadline for submission is <u>11:59pm
+on Sunday, December 3</u>. Later, the TA will email the class mailing list with
+the exact instructions on how and what to submit. <span class="GramE">However</span>
+the submission will include at least the following:</p>
+
+<p style="margin-left:.75in;text-align:justify;text-indent:-.5in;">&#160;(<span class="SpellE">i</span>)<span style="font-size:7.0pt;">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;
+</span>The source code for your pass.</p>
+
+<p style="margin-left:.75in;text-align:justify;text-indent:-.5in;">(ii)<span style="font-size:7.0pt;">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;
+</span>The output IR after running your pass on each of the examples in the <span class="SpellE">llvm</span>/<span class="SpellE">test_codes</span> directory. </p>
+
+<p style="margin-left:.75in;text-align:justify;text-indent:-.5in;">(iii)<span style="font-size:7.0pt;">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;
+</span>Any modified <span class="SpellE">Makefile</span> you use to compile your
+pass.&#160; &#194; </p>
+
+<p class="MsoNormal" style="text-align:justify;"><b><span style="font-size:14.0pt;font-family:&quot;Lucida Handwriting&quot;;">MACHINE TO USE LLVM</span></b></p>
+
+<p style="text-align:justify;">Most computers on the university <span class="SpellE">projectsstu</span> system now use the Linux OS.&#160; Since LLVM
+is compatible with Linux but <span class="SpellE">not</span> other OSs, <i><u>you
+must use a <span class="SpellE">projectsstu</span> machine for this project, as
+otherwise the software will not work</u></i>.&#160; Fortunately, if you just
+log into plaksha.edu.in@10.1.46.80, you should be taken to a Linux machine by
+default. </p>
+
+<p style="background:white;"><span style="color:black;">Please log into <span class="SpellE">projectsstu</span> at a lab on campus, or remotely using <span class="SpellE">ssh</span> or some other secure remote login method:</span></p>
+
+<p style="margin-left:.5in;text-indent:-.25in;background:white;"><span style="font-family:Symbol;color:black;">&#194;&#183;</span><span style="font-size:7.0pt;color:black;">&#160;&#160;&#160;&#160;&#160; </span><span style="color:black;">For
+example, for MacOS, I use the &#226;€œTerminal&#226;€ built-in application, where I type <span class="SpellE">&#226;€œssh</span> <a rel="noopener" href="mailto:rajeev.barua@plaksha.edu.in">rajeev.barua@plaksha.edu.in</a>&#226;€.
+</span></p>
+
+<p style="margin-left:.5in;text-indent:-.25in;background:white;"><span style="font-family:Symbol;color:black;">&#194;&#183;</span><span style="font-size:7.0pt;color:black;">&#160;&#160;&#160;&#160;&#160; </span><span style="color:black;">On
+the latest builds of Windows 10 and 11, you can use the built-in Windows SSH
+Client. Or, if that is absent, download the free &#226;€œputty&#226;€ application. </span></p>
+
+<p style="background:white;"><span style="color:black;">You can use your existing
+<span class="SpellE">Plaksha</span> <span class="SpellE">projectsstu</span> account
+name and directory ID to login.&#160; If you do not have a <span class="SpellE">projectsstu</span>
+account, please obtain one immediately. </span></p>
+
+<p class="MsoNormal" style="background:white;"><span style="color:black;">Once you
+have logged into <span class="SpellE">projectsstu</span>, please verify that you
+are on a Linux machine by typing <span class="SpellE">&#226;€œhostnamectl&#226;</span>€ on
+the command prompt. That should say &#226;€œUbuntu 22.04.3 LTS&#226;€ on the OS field. If
+it says some other version of Linux, it will probably still work. If it does
+not say Linux, it won&#226;€™t work, at which point, please contact me. Under
+&#226;€œarchitecture&#226;€, it should return x86-64. If it does not, then this computer
+won&#226;€™t work. Please contact me at this point.</span></p>
+
+<p class="MsoNormal" style="background:white;"><span style="color:black;">&#160;</span></p>
+
+<p class="MsoNormal" style="text-align:justify;"><b><span style="font-size:14.0pt;font-family:&quot;Lucida Handwriting&quot;;">BASICS TO USE LLVM </span></b></p>
+
+<p style="text-align:justify;">A brief tutorial to use <span class="SpellE">llvm</span>
+is described <a rel="noopener" href="http://llvm.org/releases/3.4/docs/GettingStarted.html" target="_blank">here</a>. LLVM is already installed on the system, so don&#226;€™t
+try reinstalling it. Some of the important steps and additional steps are
+listed below. </p>
+
+<p style="text-align:justify;">First remember to add the <span class="SpellE">llvm</span>
+and <span class="SpellE">llvm-gcc</span> install directories to your environment
+variable PATH <span class="GramE">using</span> </p>
+
+<div style="border:solid black 1.5pt;padding:0in 0in 0in 0in;position:static;z-index:auto;">
+
+<p style="margin:0in;text-align:justify;">export PATH=/<span class="SpellE">srv</span>/<span class="SpellE">shared_directory</span>/<span class="SpellE">llvm</span>/3.4-install/install/<span class="GramE">bin:$</span>PATH</p>
+
+</div>
+
+<p style="text-align:justify;">Next, copy over the example files in /<span class="SpellE">srv</span>/<span class="SpellE">shared_directory</span>/<span class="SpellE">llvm</span>/<span class="SpellE">test_codes</span>/ to a local
+directory in your home directory (Remember to use cp -r when doing this). Then
+the output bytecode file (e.g., example1.bc) can be obtained from source code
+written in C (e.g., example1.c) using: </p>
+
+<div style="border:solid black 1.5pt;padding:0in 0in 0in 0in;position:static;z-index:auto;">
+
+<p style="margin:0in;text-align:justify;">clang -c -emit-<span class="SpellE">llvm</span>
+example1.c -o example1.bc</p>
+
+</div>
+
+<p class="MsoNormal" style="text-align:justify;">Bytecode is the Intermediate
+Representation of the LLVM compiler. Please test your programs on the test
+codes placed in the <span class="SpellE">test_codes</span> folder. </p>
+
+<p style="text-align:justify;">This bytecode can be converted to assembly code
+(e.g., example1.s) using: </p>
+
+<div style="border:solid black 1.5pt;padding:0in 0in 0in 0in;position:static;z-index:auto;">
+
+<p style="margin:0in;text-align:justify;"><span class="SpellE">llc</span> &lt;
+input bytecode &gt; -o &lt; output assembly file &gt;</p>
+
+</div>
+
+<p style="text-align:justify;">This &lt; output assembly file &gt; can be
+assembled to an executable (e.g., example1) using gcc-4.8.5: </p>
+
+<div style="border:solid black 1.5pt;padding:0in 0in 0in 0in;position:static;z-index:auto;">
+
+<p style="margin:0in;text-align:justify;">gcc-4.<span class="GramE">8 &#160;&lt;</span>
+assembly file &gt; -o &lt; output executable &gt;</p>
+
+</div>
+
+<p style="text-align:justify;">We can use <span class="SpellE">llvm</span>-dis to
+disassemble bytecode to a human readable IR file (e.g., example1.ll)</p>
+
+<div style="border:solid black 1.5pt;padding:0in 0in 0in 0in;position:static;z-index:auto;">
+
+<p style="margin:0in;text-align:justify;"><span class="SpellE">llvm</span>-dis
+&lt; input bytecode &gt; -o &lt; output human readable IR file &gt;</p>
+
+</div>
+
+<p class="MsoNormal" style="text-align:justify;"><br/>
+This output file is human readable. The instructions in it will be explained in
+the next section. </p>
+
+<p style="text-align:justify;">This human readable IR can be assembled to
+bytecode using <span class="SpellE">llvm</span>-as as <span class="GramE">follows</span>
+</p>
+
+<div style="border:solid black 1.5pt;padding:0in 0in 0in 0in;position:static;z-index:auto;">
+
+<p style="margin:0in;text-align:justify;"><span class="SpellE">llvm</span>-as &lt;
+input human readable IR file &gt; -o &lt; output bytecode &gt;</p>
+
+</div>
+
+<p class="MsoNormal" style="text-align:justify;">&#160;</p>
+
+<p class="MsoNormal" style="text-align:justify;">&#160;</p>
+
+<p class="MsoNormal" style="text-align:justify;">&#160;</p>
+
+<p class="MsoNormal" style="text-align:justify;"><b><span style="font-size:14.0pt;font-family:&quot;Lucida Handwriting&quot;;">INTRODUCTION TO LLVM_IR </span></b></p>
+
+<p class="MsoNormal" style="text-align:justify;">&#160;</p>
+
+<p class="MsoNormal" style="text-align:justify;">The human readable IR that was
+obtained in the last section can be opened using any editor of your choice. </p>
+
+<p style="text-align:justify;">The first thing that will <span class="GramE">be
+helpful in understanding</span> the human readable LLVM would be to understand
+few of the instructions present in the intermediate representation of LLVM. The
+language reference manual is present <a rel="noopener" href="http://llvm.org/releases/3.4/docs/LangRef.html" target="_blank">here</a>.
+A few instructions that would be good to know are:</p>
+
+<p class="MsoListParagraph" style="margin-left:.75in;text-align:justify;text-indent:-.25in;"><span style="font-family:Symbol;">&#194;&#183;</span><span style="font-size:7.0pt;">&#160;&#160;&#160;&#160;&#160; </span><a rel="noopener" href="http://llvm.org/releases/3.4/docs/LangRef.html#terminator-instructions" target="_blank">Terminator Instructions</a> </p>
+
+<p class="MsoListParagraph" style="margin-left:.75in;text-align:justify;text-indent:-.25in;"><span style="font-family:Symbol;">&#194;&#183;</span><span style="font-size:7.0pt;">&#160;&#160;&#160;&#160;&#160; </span><a rel="noopener" href="http://llvm.org/releases/3.4/docs/LangRef.html#binary-operations" target="_blank">Binary Operations</a> </p>
+
+<p class="MsoListParagraph" style="margin-left:.75in;text-align:justify;text-indent:-.25in;"><span style="font-family:Symbol;">&#194;&#183;</span><span style="font-size:7.0pt;">&#160;&#160;&#160;&#160;&#160; </span><a rel="noopener" href="http://llvm.org/releases/3.4/docs/LangRef.html#memory-access-and-addressing-operations" target="_blank">Memory Access and Addressing Operations</a> </p>
+
+<p class="MsoListParagraph" style="margin-left:.75in;text-align:justify;text-indent:-.25in;"><span style="font-family:Symbol;">&#194;&#183;</span><span style="font-size:7.0pt;">&#160;&#160;&#160;&#160;&#160; </span><a rel="noopener" href="http://llvm.org/releases/3.4/docs/LangRef.html#icmp-instruction" target="_blank">Integer Compare Instruction</a> The types present in <span class="SpellE">llvm</span> are described <a rel="noopener" href="http://llvm.org/releases/3.4/docs/LangRef.html#type-classifications" target="_blank">here</a>. </p>
+
+<p class="MsoNormal" style="text-align:justify;">&#160;&#160;</p>
+
+<p class="MsoNormal" style="text-align:justify;"><b><span style="font-size:14.0pt;font-family:&quot;Lucida Handwriting&quot;;">IMPLEMENTATION IN LLVM </span></b></p>
+
+<p style="text-align:justify;">You can follow the following procedure to
+implement the function argument instantiation pass:</p>
+
+<p style="margin-left:.5in;text-align:justify;text-indent:-.25in;">1.<span style="font-size:7.0pt;">&#160;&#160;&#160;&#160;&#160; </span>At every function
+call in the program, examine its argument list to determine if one or more of
+the actual arguments are constants.</p>
+
+<p style="margin-left:.5in;text-align:justify;text-indent:-.25in;">2.<span style="font-size:7.0pt;">&#160;&#160;&#160;&#160;&#160; </span>If so, create a
+new function by cloning the original function definition. <span style="font-size:7.0pt;">&#160;</span>Remove the formal arguments corresponding
+to constants from the cloned function and add them as local variables.</p>
+
+<p style="margin-left:.5in;text-align:justify;text-indent:-.25in;">3.<span style="font-size:7.0pt;">&#160;&#160;&#160;&#160;&#160; </span>Replace the
+function at the call site with the newly cloned function. The actual arguments
+corresponding to the constants need to be removed.</p>
+
+<p style="margin-left:.25in;text-align:justify;text-indent:-.25in;">Hints on how
+to write the above passes are in the &#195;&#175;&#194;&#191;&#194;&#189;Steps involved&#195;&#175;&#194;&#191;&#194;&#189; section below.</p>
+
+<p class="MsoNormal" style="text-align:justify;"><b><span style="font-size:14.0pt;font-family:&quot;Lucida Handwriting&quot;;">INFRASTRUCTURE TO WRITE YOUR OWN PASS </span></b></p>
+
+<p class="MsoNormal" style="margin-bottom:12.0pt;text-align:justify;">A sample
+project has been created for you to write your own pass. A good initial step
+before writing your own pass is to compile the pass in the sample folder and
+check if it works. This will ensure that you do not have any environment bugs
+when you write your own pass. The example <span class="GramE">pass</span> present
+in the lib folder called Hello prints out the name of every function present in
+the bytecode. Follow the steps below to get it running on your machine. </p>
+
+<p class="MsoNormal" style="margin-bottom:12.0pt;text-align:justify;"><br/>
+<b>(1)</b> First copy the sample directory present at /<span class="SpellE">srv</span>/<span class="SpellE">shared_directory</span>/<span class="SpellE">llvm</span>/sample to
+your local directory, say ~/<span class="SpellE">xyz</span>/sample. You can use
+&quot;<span class="GramE">cp -R</span>&quot; to copy a directory and its
+contents. </p>
+
+<p class="MsoNormal" style="margin-bottom:12.0pt;text-align:justify;"><b>(2)</b>
+Create two other directories at the same level (<span class="SpellE">i</span>)
+obj directory, say ~/<span class="SpellE">xyz</span>/obj and (ii) an install
+directory called opt at ~/<span class="SpellE">xyz</span>/opt </p>
+
+<p class="MsoNormal" style="margin-bottom:12.0pt;text-align:justify;"><b>(3)</b>
+Configure the build system in the obj directory as follows:</p>
+
+<p class="MsoNormal" style="margin-bottom:12.0pt;">~/<span class="SpellE">xyz</span>/obj$<span class="GramE"> ..</span>/sample/configure --with-<span class="SpellE">llvmsrc</span>=/<span class="SpellE">srv</span>/<span class="SpellE">shared_directory</span>/<span class="SpellE">llvm</span>/3.4-install/<span class="SpellE">src</span>/<span class="SpellE">llvm</span> --with-<span class="SpellE">llvmobj</span>=/<span class="SpellE">srv</span>/<span class="SpellE">shared_directory</span>/<span class="SpellE">llvm</span>/3.4-install/build --prefix=/home/your-user-name/<span class="SpellE">xyz</span>/opt <br/>
+<br/>
+<b>(4)</b> You can build it and test it out as follows: <br/>
+<br/>
+~/<span class="SpellE">xyz</span>/obj$ make install </p>
+
+<p class="MsoNormal" style="text-align:justify;"><span class="SpellE"><span class="GramE">llvm</span></span><span class="GramE">[</span>0]: Installing include
+files</p>
+
+<p class="MsoNormal" style="text-align:justify;"><span class="GramE">make[</span>1]:
+Entering directory &#39;/home/russell.chiu@plaksha.edu.in/<span class="SpellE">xyz</span>/obj/lib&#39;</p>
+
+<p class="MsoNormal" style="text-align:justify;"><span class="GramE">make[</span>2]:
+Entering directory &#39;/home/russell.chiu@plaksha.edu.in/<span class="SpellE">xyz</span>/obj/lib/Hello&#39;</p>
+
+<p class="MsoNormal" style="text-align:justify;"><span class="SpellE"><span class="GramE">llvm</span></span><span class="GramE">[</span>2]: Compiling Hello.cpp
+for <span class="SpellE">Release+Asserts</span> build (PIC)</p>
+
+<p class="MsoNormal" style="text-align:justify;"><span class="SpellE"><span class="GramE">llvm</span></span><span class="GramE">[</span>2]: Linking <span class="SpellE">Release+Asserts</span> Shared Library libHello.so</p>
+
+<p class="MsoNormal" style="text-align:justify;"><span class="SpellE"><span class="GramE">llvm</span></span><span class="GramE">[</span>2]: Building <span class="SpellE">Release+Asserts</span> Archive Library <span class="SpellE">libHello.a</span></p>
+
+<p class="MsoNormal" style="text-align:justify;"><span class="SpellE"><span class="GramE">llvm</span></span><span class="GramE">[</span>2]: Installing <span class="SpellE">Release+Asserts</span> Shared Library
+/home/russell.chiu@plaksha.edu.in/xyz/install/lib/libHello.so</p>
+
+<p class="MsoNormal" style="text-align:justify;"><span class="SpellE"><span class="GramE">llvm</span></span><span class="GramE">[</span>2]: Installing <span class="SpellE">Release+Asserts</span> Archive Library
+/home/russell.chiu@plaksha.edu.in/<span class="SpellE">xyz</span>/install/lib/<span class="SpellE">libHello.a</span></p>
+
+<p class="MsoNormal" style="text-align:justify;"><span class="GramE">make[</span>2]:
+Leaving directory &#39;/home/russell.chiu@plaksha.edu.in/<span class="SpellE">xyz</span>/obj/lib/Hello&#39;</p>
+
+<p class="MsoNormal" style="text-align:justify;"><span class="GramE">make[</span>1]:
+Leaving directory &#39;/home/russell.chiu@plaksha.edu.in/<span class="SpellE">xyz</span>/obj/lib&#39;</p>
+
+<p class="MsoNormal" style="text-align:justify;">&#160;</p>
+
+<p class="MsoNormal" style="text-align:justify;">[There would be many more lines
+... only few reproduced here] </p>
+
+<p class="MsoNormal" style="text-align:justify;">&#160;</p>
+
+<p class="MsoNormal" style="text-align:justify;"><br/>
+<b>(5)</b> Set the PATH variable to also have the <span class="SpellE">llvm</span>
+installation as follows: </p>
+
+<p class="MsoNormal" style="text-align:justify;"><br/>
+~/<span class="SpellE">xyz</span>/obj: export PATH=/<span class="SpellE">srv</span>/<span class="SpellE">shared_directory</span>/<span class="SpellE">llvm</span>/3.4-install/install/bin<span class="GramE">/:$</span>PATH </p>
+
+<p class="MsoNormal" style="text-align:justify;"><br/>
+Check that the installation is correct as <span class="GramE">follows</span> </p>
+
+<p class="MsoNormal" style="text-align:justify;">&#160;</p>
+
+<p class="MsoNormal" style="text-align:justify;">~/<span class="SpellE">xyz</span>/obj:
+opt --<span class="GramE">version</span>&#160;</p>
+
+<p class="MsoNormal" style="text-align:justify;">LLVM (http://llvm.org/):</p>
+
+<p class="MsoNormal" style="text-align:justify;">&#160; LLVM version 3.4.2</p>
+
+<p class="MsoNormal" style="text-align:justify;">&#160; Optimized build with
+assertions.</p>
+
+<p class="MsoNormal" style="text-align:justify;">&#160; Built Oct 25<span class="GramE"> 2023</span> (01:11:55).</p>
+
+<p class="MsoNormal" style="text-align:justify;">&#160; Default target:
+x86_64-unknown-linux-gnu</p>
+
+<p class="MsoNormal" style="text-align:justify;"><br/>
+<b>(6)</b> You can run your pass as follows: </p>
+
+<p class="MsoNormal" style="text-align:justify;"><br/>
+~/<span class="SpellE">xyz</span>/obj: opt -load<span class="GramE"> ..</span>/opt/lib/libHello.so
+-hello /<span class="SpellE">srv</span>/<span class="SpellE">shared_directory</span>/<span class="SpellE">llvm</span>/<span class="SpellE">test_codes</span>/example1.bc -o
+example1.hello.bc</p>
+
+<p class="MsoNormal" style="text-align:justify;">&#160;</p>
+
+<p class="MsoNormal" style="text-align:justify;">The above command will optimize
+the example1.bc bytecode with the &#226;€œ-hello&#226;€ optimization and produce as
+output optimized bytecode in example1.hello.bc. This optimization is present in
+the libHello.so library.&#160; </p>
+
+<p class="MsoNormal" style="text-align:justify;">&#160;</p>
+
+<p class="MsoNormal" style="text-align:justify;">[The output should look like] </p>
+
+<p class="MsoNormal" style="text-align:justify;"><br/>
+Hello: main</p>
+
+<p class="MsoNormal" style="text-align:justify;">&#160;</p>
+
+<p class="MsoNormal" style="text-align:justify;">It prints out the names of all
+functions present in this module.</p>
+
+<p class="MsoNormal" style="text-align:justify;">&#160;</p>
+
+<p class="MsoNormal" style="text-align:justify;">Later when you write your own
+optimization, write it in the sample/lib directory. The compile and install it
+using steps (3) and (4) above.&#160; This should produce a new library with a
+.so extension.&#160; Then use the above command with the library name that you
+generated in place of libHello.so, and the name of your optimization in place <span class="GramE">of&#160; &#226;</span>€œ-hello&#226;€. This will apply your transformation to
+the bytecode file specified.</p>
+
+<p class="MsoNormal" style="text-align:justify;"><br/>
+<br/>
+<b><span style="font-size:14.0pt;font-family:&quot;Lucida Handwriting&quot;;">WRITING YOUR
+OWN PASS </span></b></p>
+
+<p style="text-align:justify;">In LLVM the transformations and optimizations are
+written as <b>Passes</b>. The documentation about an LLVM Pass and method to
+write it is <a rel="noopener" href="http://llvm.org/releases/3.4/docs/WritingAnLLVMPass.html" target="_blank">here</a> . The main sections that will be of interest to this
+project are </p>
+
+<p class="MsoListParagraph" style="margin-left:39.0pt;text-align:justify;text-indent:-21.0pt;"><span style="font-family:Symbol;">&#194;&#183;</span><span style="font-size:7.0pt;">&#160;&#160;&#160;&#160;&#160;&#160;&#160; </span><a rel="noopener" href="http://llvm.org/releases/3.4/docs/WritingAnLLVMPass.html#introduction-what-is-a-pass" target="_blank">Introduction</a> </p>
+
+<p class="MsoListParagraph" style="margin-left:39.0pt;text-align:justify;text-indent:-21.0pt;"><span style="font-family:Symbol;">&#194;&#183;</span><span style="font-size:7.0pt;">&#160;&#160;&#160;&#160;&#160;&#160;&#160; </span><a rel="noopener" href="http://llvm.org/releases/3.4/docs/WritingAnLLVMPass.html#quick-start-writing-hello-world" target="_blank">Quick Start</a> </p>
+
+<p class="MsoListParagraph" style="margin-left:39.0pt;text-align:justify;text-indent:-21.0pt;"><span style="font-family:Symbol;">&#194;&#183;</span><span style="font-size:7.0pt;">&#160;&#160;&#160;&#160;&#160;&#160;&#160; </span><a rel="noopener" href="http://llvm.org/docs/WritingAnLLVMPass.html#the-modulepass-class"><span class="SpellE">ModulePass</span></a></p>
+
+<p class="MsoListParagraph" style="margin-left:39.0pt;text-align:justify;text-indent:-21.0pt;"><span style="font-family:Symbol;">&#194;&#183;</span><span style="font-size:7.0pt;">&#160;&#160;&#160;&#160;&#160;&#160;&#160; </span><a rel="noopener" href="http://llvm.org/releases/3.4/docs/WritingAnLLVMPass.html#the-functionpass-class" target="_blank"><span class="SpellE">FunctionPass</span></a> </p>
+
+<p class="MsoListParagraph" style="margin-left:39.0pt;text-align:justify;text-indent:-21.0pt;"><span style="font-family:Symbol;">&#194;&#183;</span><span style="font-size:7.0pt;">&#160;&#160;&#160;&#160;&#160;&#160;&#160; </span><a rel="noopener" href="http://llvm.org/releases/3.4/docs/WritingAnLLVMPass.html#specifying-interactions-between-passes" target="_blank"><span class="SpellE">AnalysisRequired</span></a> </p>
+
+<p class="MsoNormal" style="text-align:justify;">&#160;</p>
+
+<p class="MsoNormal" style="text-align:justify;">The example code present in the
+sample folder has an example code and <span class="SpellE">Makefiles</span>. The
+documentation in this section and the example code should help you in your
+project. You can add a new pass to the sample code by creating a new directory
+in the lib folder and adding the name of this new folder to the <span class="SpellE">Makefile</span> in the lib folder. </p>
+
+<p style="text-align:justify;">The programmer&#39;s manual <a rel="noopener" href="http://llvm.org/releases/3.4/docs/ProgrammersManual.html" target="_blank">here</a>
+gives an introduction to some important and useful API&#39;s in LLVM. A few
+sections of the programmer&#39;s manual that will be interest to this project are: </p>
+
+<p class="MsoListParagraph" style="margin-left:.75in;text-align:justify;text-indent:-.25in;"><span style="font-family:Symbol;">&#194;&#183;</span><span style="font-size:7.0pt;">&#160;&#160;&#160;&#160;&#160;
+&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; </span><a rel="noopener" href="http://llvm.org/releases/3.4/docs/ProgrammersManual.html#helpful-hints-for-common-operations" target="_blank">Common Operations</a> </p>
+
+<p class="MsoListParagraph" style="margin-left:.75in;text-align:justify;text-indent:-.25in;"><span style="font-family:Symbol;">&#194;&#183;</span><span style="font-size:7.0pt;">&#160;&#160;&#160;&#160;&#160;
+&#160;&#160;&#160;&#160;&#160;&#160;&#160; </span><span class="MsoHyperlink"><a rel="noopener" href="http://llvm.org/releases/3.4/docs/ProgrammersManual.html#the-core-llvm-class-hierarchy-reference" target="_blank">Core LLVM classes</a>&#160;</span></p>
+
+<p class="MsoNormal" style="margin-bottom:12.0pt;text-align:justify;">&#160;</p>
+
+<p class="MsoNormal" style="text-align:justify;">These sections show methods to
+add and delete instructions in the input bytecode <span class="GramE">and also</span>
+present methods for basic inspection and traversal routines. </p>
+
+<p style="text-align:justify;">The <span class="SpellE">doxygen</span> for the
+LLVM project is present at <a rel="noopener" href="http://www.llvm.org/doxygen" target="_blank">here</a>.
+</p>
+
+<p class="MsoNormal" style="margin-bottom:12.0pt;text-align:justify;"><b><span style="font-size:14.0pt;font-family:&quot;Lucida Handwriting&quot;;">STEPS INVOLVED</span></b></p>
+
+<p class="MsoNormal" style="margin-bottom:12.0pt;background:white;"><span class="im"><span style="color:black;">Below are helpful suggestions on how to
+implement some of the tasks in the project. You can choose to use them, but
+full credit will be given for other implementations, provided you write them
+yourself without assistance or copying code from elsewhere. Of course, you are
+allowed to look at code already in the LLVM compiler as examples. </span></span></p>
+
+<p class="MsoNormal" style="margin-bottom:12.0pt;background:white;"><span class="im"><b><span style="font-size:14.0pt;color:black;">1.</span></b></span><span class="apple-converted-space"><b><span style="font-size:14.0pt;color:black;">&#160;</span></b></span><span class="im"><b><span style="font-size:14.0pt;color:black;">Iterate over all
+instructions</span></b></span></p>
+
+<p class="MsoNormal" style="margin-bottom:12.0pt;background:white;"><span style="color:#222222;">First iterate over all instructions in the original code
+and for each instruction cast it to a <span class="SpellE">CallInst</span>, if
+this succeeds then you have an instruction that is of interest.<span class="apple-converted-space">&#160;</span>The<span class="apple-converted-space">&#160;</span><span class="SpellE"><i>CallInst</i></span><span class="apple-converted-space">&#160;</span>class
+is defined in&#160;<span class="apple-converted-space">&#160;</span><br/>
+<a rel="noopener" href="http://llvm.org/doxygen/Instructions_8h_source.html" target="_blank"><span style="color:#1155CC;">http://llvm.org/doxygen/<wbr>Instructions_8h_source.html.<span class="apple-converted-space">&#160;</span><span style="background:white;">Some of
+functions of interest in this class are<span class="apple-converted-space">&#160;</span></span><span class="SpellE"><span class="GramE"><i><span style="color:black;">getCalledFunction</span></i></span></span><span class="GramE"><i><span style="color:black;">(</span></i></span><i><span style="color:black;">)</span></i><span style="color:black;">&#160; -- This will
+tell you which function is being called<span class="apple-converted-space">&#160;</span></span></wbr></span></a></span></p>
+
+<p class="MsoNormal" style="margin-bottom:12.0pt;background:white;"><span class="im"><b><span style="font-size:14.0pt;color:black;">2.</span></b></span><span class="apple-converted-space"><span style="font-size:14.0pt;color:black;">&#160;</span></span><span class="im"><b><span style="font-size:14.0pt;color:black;">Access the argument list
+of a function.</span></b></span><span style="color:#500050;"><br/>
+</span><span class="SpellE"><i><span style="color:#222222;">arg_<span class="GramE">begin</span></span></i></span><span class="GramE"><i><span style="color:#222222;">(</span></i></span><i><span style="color:#222222;">) <span class="SpellE">arg_end</span>()</span></i><span style="color:#222222;">&#160; iterators will help you to get to the arguments.
+This also is present in the <span class="SpellE">CallInst</span> class.<span class="apple-converted-space">&#160;</span>Another way to access arguments is<span class="apple-converted-space">&#160;</span><br/>
+<br/>
+unsigned&#160;<span class="SpellE">getNumArgOperands</span> () <span class="GramE">const&#160;
+---</span> gives number of operands<span class="apple-converted-space">&#160;</span><br/>
+Value *&#160;<span class="SpellE">getArgOperand</span> (unsigned <span class="SpellE">i</span>) <span class="SpellE">constp</span>; -- will help you get
+the argument at index <span class="SpellE">i</span><span class="apple-converted-space">&#160;</span></span></p>
+
+<p class="MsoNormal" style="margin-bottom:12.0pt;background:white;"><b><span style="font-size:14.0pt;color:black;">3. Check whether an actual argument is a
+constant.</span></b></p>
+
+<p class="MsoNormal" style="margin-bottom:12.0pt;background:white;"><span style="color:#222222;">To know if an object of type Value* (say V) is a
+constant, the following code can be <span class="GramE">used</span><span class="apple-converted-space">&#160;</span></span></p>
+
+<pre style="background:white;"><span style="font-size:12.0pt;font-family:&quot;Times New Roman&quot;,serif;color:#222222;">if (isa&lt;Constant&gt;(V))</span></pre><pre style="background:
+white;"><span style="font-size:12.0pt;font-family:&quot;Times New Roman&quot;,serif;color:#222222;">&#160;&#160;&#160; return <span class="GramE">true;</span></span></pre>
+
+<p class="MsoNormal" style="background:white;"><span style="color:#222222;">&#160;</span></p>
+
+<p class="MsoNormal" style="margin-bottom:12.0pt;background:white;"><b><span style="font-size:14.0pt;color:black;">4. Clone a
+function</span></b></p>
+
+<p class="MsoNormal" style="background:white;"><span style="color:#222222;">It is present in the file<span class="apple-converted-space">&#160;</span><br/>
+<br/>
+<a rel="noopener" href="http://llvm.org/docs/doxygen/html/CloneFunction_8cpp_source.html#l00223" target="_blank"><span style="color:#1155CC;">http://llvm.org/docs/doxygen/<wbr>html/CloneFunction_8cpp_<wbr>source.html#l00223</wbr></wbr></span></a></span></p>
+
+<p class="MsoNormal" style="background:white;"><span style="color:#500050;">&#160;</span></p>
+
+<p class="MsoNormal" style="margin-bottom:12.0pt;background:white;"><b><span style="font-size:14.0pt;color:black;">5. Replace a
+call to a function to a call to another function.</span></b></p>
+
+<p class="MsoNormal" style="background:white;"><span style="color:#222222;">There are two ways to accomplish
+this.<span class="apple-converted-space">&#160;</span></span></p>
+
+<p class="MsoNormal" style="margin-bottom:12.0pt;background:white;"><span style="color:#222222;">(a) You need to create a new <span class="SpellE">CallInst</span> calling your cloned function and new arguments.
+Use one of the constructors of the <span class="SpellE">CallInst</span> which
+will also let you specify a point to insert it. If you do <span class="GramE">this</span>
+you also need to remove the original instruction from its parent. This is
+present in the<span class="apple-converted-space">&#160;</span><i>Instruction</i><span class="apple-converted-space">&#160;</span>class.<span class="apple-converted-space">&#160;</span><br/>
+<br/>
+<a rel="noopener" href="http://llvm.org/doxygen/Instructions_8h_source.html" target="_blank"><span style="color:#1155CC;">http://llvm.org/doxygen/<wbr>Instructions_8h_source.html</wbr></span></a></span></p>
+
+<p class="MsoNormal" style="margin-bottom:12.0pt;background:white;"><span style="color:#222222;">(b) There is a method called<span class="apple-converted-space">&#160;</span><span class="SpellE"><i>setCalledFunction</i></span><span class="apple-converted-space">&#160;</span>in the <span class="SpellE">CallInst</span>
+class. Use this to replace the old function with the new one. </span></p>
+
+<p class="MsoNormal" style="margin-bottom:12.0pt;background:white;"><b><span style="font-size:14.0pt;color:black;">6. Create a
+constant symbol of type Value</span></b></p>
+
+<p class="MsoNormal">Create
+a new constant symbol in main memory with the value of the constant argument.
+To do this, use any suitable constructor in the&#160;<span class="SpellE"><b>ConstantInt</b></span>&#160;class
+in LLVM. For example, if you have cloned some function:</p>
+
+<p class="MsoNormal">&#160;</p>
+
+<p class="MsoNormal"><span class="GramE">foo(</span>int x, int y)</p>
+
+<p class="MsoNormal"><span style="font-size:10.0pt;font-family:Helvetica;color:#333333;">&#160;</span></p>
+
+<p class="MsoNormal">and
+it was called as <span class="GramE">foo(</span>a, 5), then create a constant
+called&#160;<span class="SpellE"><i>myconst</i></span>&#160;with the value of 5
+in the main memory. /* Note this constant is not added to IR yet. That is fine.
+*/</p>
+
+<p class="MsoNormal">&#160;</p>
+
+<p class="MsoNormal">Use
+the <span class="GramE">get( )</span> <a rel="noopener" href="http://llvm.org/docs/doxygen/html/classllvm_1_1ConstantInt.html"><span style="font-size:10.0pt;font-family:Helvetica;">constructor</span></a> in <span class="SpellE">ConstantInt</span> class for this purpose. Below is the prototype,</p>
+
+<p class="MsoNormal" style="margin-bottom:1.5pt;line-height:12.2pt;background:white;"><span style="font-size:10.0pt;font-family:Helvetica;color:#333333;">&#160;</span></p>
+
+<table class="MsoNormalTable" border="0" cellpadding="0" style="background:white;">
+ <tr>
+  <td nowrap="nowrap" valign="top" style="border:none;border-top:solid #C4CFE5 1.0pt;background:#F9FAFC;padding:.75pt 0in 0in 6.0pt;">
+  <p class="MsoNormal"><span style="color:black;">static&#160;<span class="SpellE"><a rel="noopener" href="http://llvm.org/docs/doxygen/html/classllvm_1_1ConstantInt.html"><b><span style="color:#4665A2;">ConstantInt</span></b></a></span>&#160;*&#160;</span></p>
+  </td>
+  <td width="1440" valign="bottom" style="width:15.0in;border:none;border-top:solid #C4CFE5 1.0pt;background:#F9FAFC;padding:.75pt 0in 0in 6.0pt;">
+  <p class="MsoNormal"><span style="color:black;"><a rel="noopener" href="http://llvm.org/docs/doxygen/html/classllvm_1_1ConstantInt.html#a1c51933b9fb89c364a098fad544cba96"><b><span style="color:#4665A2;">get</span></b></a>&#160;(<span class="SpellE"><a rel="noopener" href="http://llvm.org/docs/doxygen/html/classllvm_1_1IntegerType.html"><b><span style="color:#4665A2;">IntegerType</span></b></a></span>&#160;*Ty, uint64_t
+  V,&#160;<a rel="noopener" href="http://llvm.org/docs/doxygen/html/classbool.html"><b><span style="color:#4665A2;">bool</span></b></a>&#160;<span class="SpellE">isSigned</span>=<a rel="noopener" href="http://llvm.org/docs/doxygen/html/SimplifyInstructions_8cpp.html#a6dd713bd88673625bb181528a61bdc85"><b><span style="color:#4665A2;">false</span></b></a>)</span></p>
+  </td>
+ </tr>
+ <tr>
+  <td style="background:#F9FAFC;padding:0in 6.0pt 3.0pt 6.0pt;">
+  <p class="MsoNormal"><span style="color:#555555;">&#160;</span></p>
+  </td>
+  <td style="background:#F9FAFC;padding:0in 6.0pt 3.0pt 6.0pt;">
+  <p class="MsoNormal"><span style="color:#555555;">Return a&#160;<span class="SpellE"><a rel="noopener" href="http://llvm.org/docs/doxygen/html/classllvm_1_1ConstantInt.html" title="This is the shared class of boolean and integer constants."><b><span style="color:#4665A2;">ConstantInt</span></b></a></span>&#160;with the
+  specified integer value for the specified type.&#160;</span></p>
+  </td>
+ </tr>
+</table>
+
+<p class="MsoNormal" style="margin-bottom:1.5pt;line-height:12.2pt;background:white;"><span style="font-size:10.0pt;font-family:Helvetica;color:#333333;">&#160;</span></p>
+
+<p class="MsoNormal"><b><span style="font-size:14.0pt;color:black;">7. </span><span style="color:#333333;background:white;">Replace all uses of a formal argument with the constant
+symbol you created above. </span></b></p>
+
+<p class="MsoNormal" style="margin-bottom:12.0pt;background:white;"><span style="color:#222222;">&#160;</span></p>
+
+<p class="MsoNormal" style="margin-bottom:12.0pt;background:white;"><span style="color:#222222;">First, the Function class defined
+in<span class="apple-converted-space">&#160;</span><a rel="noopener" href="http://llvm.org/doxygen/Function_8h_source.html" target="_blank"><span style="color:#1155CC;">http://llvm.org/doxygen/<wbr>Function_8h_source.html<span class="apple-converted-space">&#160;</span>gives you capabilities to access the
+arguments of a function.</wbr></span></a></span></p>
+
+<p class="MsoNormal" style="background:white;"><span style="color:#222222;">You can iterate over the
+arguments using<span class="apple-converted-space">&#160;</span><span class="SpellE"><i>arg_<span class="GramE">begin</span></i></span><span class="GramE"><i>(</i></span><i>)
+<span class="SpellE">arg_end</span>()<span class="apple-converted-space">&#160;</span></i>.
+You can get to objects of class type<span class="apple-converted-space">&#160;</span><i>Value</i><span class="apple-converted-space">&#160;</span>from these.<span class="apple-converted-space">&#160;</span> This class is defined in<span class="apple-converted-space">&#160;</span><br/>
+<br/>
+<a rel="noopener" href="http://llvm.org/doxygen/Value_8h_source.html" target="_blank"><span style="color:#1155CC;">http://llvm.org/doxygen/Value_<wbr>8h_source.html</wbr></span></a></span></p>
+
+<p class="MsoNormal" style="background:white;"><span style="color:#222222;">&#160;</span></p>
+
+<p class="MsoNormal" style="background:white;"><span class="apple-converted-space"><span style="color:#222222;">Let
+the formal argument corresponding to the constant be <span class="SpellE">constArg</span>.</span></span></p>
+
+<p class="MsoNormal" style="background:white;"><span class="apple-converted-space"><span style="color:#222222;">&#160;</span></span></p>
+
+<p class="MsoNormal"><span style="color:#333333;">Value * <span class="SpellE">constArg</span></span></p>
+
+<p class="MsoNormal"><span style="color:#333333;">&#160;</span></p>
+
+<p class="MsoNormal"><span style="color:#333333;">Then, we can replace all uses of this argument with the
+constant you created in the previous step (<span class="SpellE">myconst</span>)
+as follows. We call </span><span class="SpellE"><span class="GramE"><i><span style="color:#222222;">replaceAllUsesWith</span></i></span></span><span class="GramE"><i><span style="color:#222222;">(</span></i></span><i><span style="color:#222222;">Value* V) </span></i><span class="apple-converted-space"><span style="color:#222222;">&#160;function on the object <span class="SpellE">constArg</span>
+as shown below :</span></span></p>
+
+<p class="MsoNormal"><span style="color:#333333;">&#160;</span></p>
+
+<p class="MsoNormal"><span class="SpellE"><span style="color:#333333;">constArg</span></span><span style="color:#333333;"> -&gt; <span class="SpellE">replaceAllUsesWith</span>(<span class="SpellE">myconst</span>)</span></p>
+
+<p class="MsoNormal"><span style="color:#333333;">&#160;</span></p>
+
+<p class="MsoNormal"><span style="color:#333333;">In the example in the previous step, this will replace
+all uses of formal argument y with 5. Look at <a rel="noopener" href="http://llvm.org/docs/doxygen/html/classllvm_1_1ConstantInt.html">this</a>
+for <span class="SpellE">replaceAllUsesWith</span> function prototype. It&#195;&#175;&#194;&#191;&#194;&#189;s
+also shown below:</span></p>
+
+<p class="MsoNormal"><span style="color:#333333;">&#160;</span></p>
+
+<table class="MsoNormalTable" border="0" cellpadding="0" style="background:white;">
+ <tr>
+  <td nowrap="nowrap" valign="top" style="border:none;border-top:solid #C4CFE5 1.0pt;background:#F9FAFC;padding:.75pt 0in 0in 6.0pt;">
+  <p class="MsoNormal" align="right" style="margin:3.0pt;text-align:right;line-height:12.7pt;"><span style="font-size:10.0pt;font-family:&quot;Lucida Grande&quot;,sans-serif;color:black;">void&#160;</span></p>
+  </td>
+  <td width="1440" valign="bottom" style="width:15.0in;border:none;border-top:solid #C4CFE5 1.0pt;background:#F9FAFC;padding:.75pt 0in 0in 6.0pt;">
+  <p class="MsoNormal" style="margin:3.0pt;line-height:12.7pt;"><span style="font-size:10.0pt;font-family:&quot;Lucida Grande&quot;,sans-serif;color:black;"><a rel="noopener" href="http://llvm.org/docs/doxygen/html/classllvm_1_1Value.html#a3ab5fc45117b450e8bb04e564cb6e5f2"><span class="SpellE"><b><span style="color:#4665A2;">replaceAllUsesWith</span></b></span></a>&#160;(<a rel="noopener" href="http://llvm.org/docs/doxygen/html/classllvm_1_1Value.html"><b><span style="color:#4665A2;">Value</span></b></a>&#160;*V)</span></p>
+  </td>
+ </tr>
+ <tr>
+  <td style="background:#F9FAFC;padding:0in 6.0pt 3.0pt 6.0pt;">
+  <p class="MsoNormal" style="margin:3.0pt;line-height:12.7pt;"><span style="font-size:10.0pt;font-family:&quot;Lucida Grande&quot;,sans-serif;color:#555555;">&#160;</span></p>
+  </td>
+  <td style="background:#F9FAFC;padding:0in 6.0pt 3.0pt 6.0pt;">
+  <p class="MsoNormal" style="margin:3.0pt;line-height:12.7pt;"><span style="font-size:10.0pt;font-family:&quot;Lucida Grande&quot;,sans-serif;color:#555555;">Change
+  all uses of this to point to a new&#160;<a rel="noopener" href="http://llvm.org/docs/doxygen/html/classllvm_1_1Value.html" title="LLVM Value Representation."><b><span style="color:#4665A2;">Value</span></b></a>.&#160;</span></p>
+  </td>
+ </tr>
+</table>
+
+<p class="MsoNormal"><span style="color:#333333;">&#160;</span></p>
+
+<p class="MsoNormal"><span style="color:#333333;">Note that this step does NOT remove the argument, it just
+makes it dead by removing all uses to it.&#160; Now that the argument is dead,
+it is easy to remove in the next step.</span></p>
+
+<p class="MsoNormal"><span style="color:#333333;">&#160;</span></p>
+
+<p class="MsoNormal" style="background:white;"><b><span style="font-size:14.0pt;color:black;">8. Remove dead
+arguments from functions.</span></b></p>
+
+<p class="MsoNormal" style="background:white;"><span style="color:#222222;">&#160;</span></p>
+
+<p class="MsoNormal" style="background:white;"><span style="color:#222222;">This step removes both the
+actuals and formals for arguments that are never used (i.e., are dead.) The
+easiest way to do this is to use the<span class="apple-converted-space">&#160;pre-existing
+LLVM pass:</span></span></p>
+
+<p class="MsoNormal">&#160;</p>
+
+<p class="MsoNormal"><i>-<span class="SpellE">deadargelim</span>:</i>&#160;Dead Argument Elimination pass after
+you have made the IR changes.</p>
+
+<p class="MsoNormal">&#160;</p>
+
+<p class="MsoNormal">This
+will remove both the actual and formal arguments that are no longer needed
+automatically from everywhere in the code. No need to write new LLVM code at
+all for this step! The argument y will be removed, for example, because it no
+longer has any uses in <span class="GramE">foo(</span>), since all uses of it
+have been replaced by a constant.</p>
+
+<p class="MsoNormal"><span style="color:#222222;">&#160;</span></p>
+
+<p class="MsoNormal"><span style="color:#222222;">Run the <span class="SpellE"><i>deadargelim</i></span> pass
+separately on the command line with the byte code obtained from running your
+pass as the input bytecode. Below is the command to do it.</span></p>
+
+<p class="MsoNormal"><span style="color:#222222;">&#160;</span></p>
+
+<p class="MsoNormal"><i><span style="color:#222222;">opt --<span class="SpellE">deadargelim</span> &lt; input
+bytecode &gt; -o &lt; output byte code &gt;</span></i></p>
+
+<p style="background:white;"><span style="color:#222222;">No need to integrate the calling
+of <span class="SpellE">deadargelim</span> pass in your function instantiation
+pass code.</span></p>
+
+<p style="background:white;"><span style="color:#222222;">Alternately, one can imagine
+doing it by <span class="GramE">actually deleting</span> an argument of a
+function. Using ideas from code present in<span class="apple-converted-space">&#160;</span><a rel="noopener" href="http://llvm.org/docs/doxygen/html/DeadArgumentElimination_8cpp_source.html" target="_blank"><span style="color:#1155CC;">http://llvm.org/docs/doxygen/<wbr>html/DeadArgumentElimination_<wbr>8cpp_source.html<span class="apple-converted-space">&#160;</span>one can do this. Look at functions
+around 319 and 739 if you are interested, but this is not the easiest way.</wbr></wbr></span></a></span></p>
+
+<p class="MsoNormal" style="background:white;"><span style="color:#222222;">Some useful links in general<span class="apple-converted-space">&#160;</span></span></p>
+
+<p class="MsoNormal" style="background:white;"><span style="color:#222222;">&#160;</span></p>
+
+<p class="MsoNormal" style="margin-bottom:12.0pt;background:white;"><span style="color:#222222;">(a) A list of all classes <span class="GramE">present</span> in <span class="SpellE">llvm</span> --<span class="apple-converted-space">&#160;</span><a rel="noopener" href="http://llvm.org/doxygen/classes.html" target="_blank"><span style="color:#1155CC;">http://llvm.org/doxygen/<wbr>classes.html</wbr></span></a></span></p>
+
+<p class="MsoNormal" style="margin-bottom:12.0pt;background:white;"><span style="color:#222222;">(b) A list of all files <span class="GramE">present</span> in <span class="SpellE">llvm</span> --<span class="apple-converted-space">&#160;</span><a rel="noopener" href="http://llvm.org/doxygen/files.html" target="_blank"><span style="color:#1155CC;">http://llvm.org/doxygen/files.<wbr>html</wbr></span></a></span></p>
+
+<p class="MsoNormal" style="margin-bottom:12.0pt;background:white;"><span style="color:#222222;">(c) Link to <span class="SpellE">llvm&#39;s</span>
+programmer manual --<span class="apple-converted-space">&#160;</span><a rel="noopener" href="http://llvm.org/releases/3.4/docs/ProgrammersManual.html" target="_blank"><span style="color:#1155CC;">http://llvm.org/releases/3.4/<wbr>docs/ProgrammersManual.html&#160;<span class="apple-converted-space">&#160;</span></wbr></span></a></span></p>
+
+<p class="MsoNormal" style="background:white;"><span style="color:#222222;">Some subsections of interest here
+may be<span class="apple-converted-space">&#160;</span><i>cast templates, iterating
+over basic blocks in a function, iterating over instructions in a <span class="SpellE">Basicblock</span> and so on. Iterating over def-use chains,
+Creating and inserting new instructions, deleting instructions, replacing an
+instruction with another value, Creating types, the Value class, the Constant
+class, the Function class and so on.&#160;</i><span class="apple-converted-space">&#160;</span></span></p>
+
+<p style="text-align:justify;"><b><span style="font-size:14.0pt;font-family:&quot;Lucida Handwriting&quot;;">Common Issue</span></b></p>
+
+<p style="text-align:justify;">One
+common error that you may run into occurs when you are using the opt command
+with custom passes such as the <span class="SpellE">libHello</span> example
+discussed. You may see an error along the lines of the <span class="GramE">following</span></p>
+
+<p class="MsoNormal" style="margin-bottom:7.5pt;line-height:15.0pt;background:whitesmoke;word-break:break-all;"><span style="font-size:10.0pt;font-family:Menlo;color:#660066;">Error</span><span style="font-size:10.0pt;font-family:Menlo;color:#212529;"> opening </span><span class="GramE"><span style="font-size:10.0pt;font-family:Menlo;color:#008800;">&#39;..</span></span><span style="font-size:10.0pt;font-family:Menlo;color:#008800;">/opt/lib/libHello.so&#39;</span><span style="font-size:10.0pt;font-family:Menlo;color:#212529;">:
+../opt/lib/libHello.so: </span><span style="font-size:10.0pt;font-family:Menlo;color:#006666;">undefined</span><span style="font-size:10.0pt;font-family:Menlo;color:#212529;"> symbol:
+_ZNK4llvm12FunctionPass17createPrinterPassERNS_11raw_ostreamERKSs</span></p>
+
+<p class="MsoNormal" style="margin-bottom:7.5pt;line-height:15.0pt;background:whitesmoke;word-break:break-all;"><span style="font-size:10.0pt;font-family:Menlo;color:#212529;">&#160;
+-load request ignored.</span></p>
+
+<p class="MsoNormal" style="margin-bottom:7.5pt;line-height:15.0pt;background:whitesmoke;word-break:break-all;"><span style="font-size:10.0pt;font-family:Menlo;color:#660066;">opt</span><span style="font-size:10.0pt;font-family:Menlo;color:#212529;">: Unknown command line argument </span><span style="font-size:
+10.0pt;font-family:Menlo;color:#008800;">&#39;-hello&#39;</span><span style="font-size:10.0pt;font-family:Menlo;color:#212529;">. &#160;Try: </span><span style="font-size:10.0pt;font-family:
+Menlo;color:#008800;">&#39;opt -help&#39;</span><span style="font-size:10.0pt;font-family:Menlo;color:#212529;"></span></p>
+
+<p style="text-align:justify;">This
+error often occurs sporadically between runs and can simply be fixed by purging
+your working directory and reconfiguring your LLVM base project as described
+these instructions. </p>
+
+<p style="text-align:justify;">There
+are several work arounds here:</p>
+
+<p style="margin-left:.5in;text-align:justify;text-indent:-.25in;"><span><span>(a)<span style="font:7.0pt &quot;Times New Roman&quot;;">&#160;&#160; </span></span></span>One
+way to expedite the project reconfiguration is the create two scripts (setup.sh
+and run.sh) such that by running one script the LLVM base project is
+reconfigured in some known directory (this is simply done by writing the list
+of commands used earlier in a ‘.<span class="SpellE">sh</span>’ file. The other
+script would execute the compilation step for your pass (this is the opt
+command). It is important that these scripts include the “export” definition mentioned
+earlier as a global variable to the bash script.</p>
+
+<p style="margin-left:.5in;text-align:justify;text-indent:-.25in;"><span><span>(b)<span style="font:7.0pt &quot;Times New Roman&quot;;">&#160; </span></span></span>Another
+method is to use the following command to remove LLVM path.</p>
+
+<p class="MsoListParagraph" style="margin-bottom:7.5pt;line-height:15.0pt;background:whitesmoke;word-break:break-all;"><span style="font-size:10.0pt;font-family:Menlo;color:#212529;">export
+PATH=$(echo $PATH | </span><span style="font-size:10.0pt;font-family:Menlo;color:#000088;">tr</span><span style="font-size:10.0pt;font-family:Menlo;color:#212529;"> </span><span style="font-size:10.0pt;font-family:Menlo;color:#008800;">&#39;:&#39;</span><span style="font-size:10.0pt;font-family:Menlo;color:#212529;"> </span><span style="font-size:10.0pt;font-family:Menlo;color:#008800;">&#39;\n&#39;</span><span style="font-size:10.0pt;font-family:Menlo;color:#212529;"> | </span><span style="font-size:10.0pt;font-family:Menlo;color:#000088;">grep</span><span style="font-size:10.0pt;font-family:Menlo;color:#212529;"> -v </span><span style="font-size:10.0pt;font-family:Menlo;color:#008800;">&#39;/<span class="SpellE">srv</span>/<span class="SpellE">shared_directory</span>/<span class="SpellE">llvm</span>/3.4-install/install/bin&#39;</span><span style="font-size:10.0pt;font-family:Menlo;color:#212529;"> | </span><span style="font-size:10.0pt;font-family:Menlo;color:#000088;">tr</span><span style="font-size:10.0pt;font-family:Menlo;color:#212529;"> </span><span style="font-size:10.0pt;font-family:Menlo;color:#008800;">&#39;\n&#39;</span><span style="font-size:10.0pt;font-family:Menlo;color:#212529;"> </span><span style="font-size:10.0pt;font-family:Menlo;color:#008800;">&#39;:&#39;</span><span style="font-size:10.0pt;font-family:Menlo;color:#212529;">)</span></p>
+
+<p style="margin-left:.5in;text-align:justify;">Then
+rerunning the <i>export PATH=…</i> command from earlier.</p>
+
+<p style="margin-left:.5in;text-align:justify;text-indent:-.25in;"><span><span>(c)<span style="font:7.0pt &quot;Times New Roman&quot;;">&#160;&#160; </span></span></span>One
+common mistake that may be the root of this problem is that the command should
+not be copied and pasted from these instructions. Instead these commands should
+be manually typed each time to ensure no trailing whitespace characters are
+included.</p>
+
+<p style="text-align:justify;"><b><span style="font-size:14.0pt;font-family:&quot;Lucida Handwriting&quot;;">MORE USEFUL LINKS</span></b></p>
+
+<p style="margin-left:.5in;text-align:justify;text-indent:-.25in;"><span style="font-family:Symbol;">&#194;&#183;</span><span style="font-size:7.0pt;">&#160;&#160;&#160;&#160;&#160;
+</span><a rel="noopener" href="http://laure.gonnord.org/pro/research/ER03_2015/lab3_intro.pdf">Writing
+an LLVM pass</a>&#160; Refer to the page titled iterating through Functions,
+Blocks, Instructions.</p>
+
+<p style="margin-left:.5in;text-align:justify;">&#160;</p>
+
+</div>
+
+
+
+
+<script type="module" src="https://s.brightspace.com/lib/bsi/20.23.11-218/unbundled/mathjax.js"></script><script type="text/javascript">document.addEventListener('DOMContentLoaded', function() {
+					if (document.querySelector('math') || /\$\$|\\\(|\\\[|\\begin{|\\ref{|\\eqref{/.test(document.body.innerHTML)) {
+						document.querySelectorAll('mspace[linebreak="newline"]').forEach(elm => {
+							elm.setAttribute('style', 'display: block; height: 0.5rem;');
+						});
+
+						window.D2L.MathJax.loadMathJax({
+							'outputScale': 1.5,
+							'renderLatex': true
+						});
+					}
+				});</script><script type="module" src="https://s.brightspace.com/lib/bsi/20.23.11-218/unbundled/prism.js"></script><script type="text/javascript">document.addEventListener('DOMContentLoaded', function() {
+					document.querySelectorAll('.d2l-code').forEach(code => {
+						window.D2L.Prism.formatCodeElement(code);
+					});
+				});</script></body></html>
