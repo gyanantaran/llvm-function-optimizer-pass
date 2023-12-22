@@ -15,7 +15,7 @@ generate_ir() {
 	# Loop through each '.bc' file and generate human-readable IR
 	for bc_file in $bc_files; do
 		# Extract the filename without the extension
-		filename=$(basename "$bc_file" .hello.bc)
+		filename=$(basename "$bc_file" .bc)
 
 		# Generate human-readable IR using llvm-dis
 		llvm-dis "$bc_file" -o "$ir_dir/$filename.ll"
@@ -30,6 +30,5 @@ generate_ir() {
 }
 
 # Example usage:
-#generate_ir "../input/test_bc" "../output/test_ir_output"
-generate_ir "../output/optz_bc" "../output/optz_ir_output"
-
+generate_ir "../input/test_bc/Function-inlining" "../output/test_ir_output/Function-inlining"
+#generate_ir "../output/optz_bc/Function-inlining" "../output/optz_ir_output/Function-inlining"

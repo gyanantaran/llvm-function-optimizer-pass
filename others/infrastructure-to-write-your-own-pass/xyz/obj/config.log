@@ -27,6 +27,7 @@ uname -v = #38~22.04.1-Ubuntu SMP PREEMPT_DYNAMIC Thu Nov  2 18:01:13 UTC 2
 /usr/bin/oslevel       = unknown
 /bin/universe          = unknown
 
+PATH: /home/vishal.paudel@plaksha.edu.in/.vscode-server/bin/af28b32d7e553898b2a91af498b1fb666fdebe0c/bin/remote-cli
 PATH: /usr/local/sbin
 PATH: /usr/local/bin
 PATH: /usr/sbin

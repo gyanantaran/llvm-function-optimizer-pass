@@ -1,11 +1,14 @@
 #!/bin/bash
 
 # Set the source and destination directories with absolute paths
-src_dir=$(realpath ~/llvm-optz-pass-func-O2/llvm/test_codes)
-dest_dir=$(realpath ../input/test_bc)
+src_dir=$(realpath ../../llvm/test_codes/Function-inlining)
+dest_dir=$(realpath ../input/test_bc/Function-inlining)
 
 # Create the destination directory if it doesn't exist
 mkdir -p "$dest_dir"
+
+# Add the llvm installation to the PATH
+export PATH="/srv/shared_directory/llvm/3.4-install/install/bin/:$PATH"
 
 # Loop through all C files in the source directory
 for file in "$src_dir"/*.c; do

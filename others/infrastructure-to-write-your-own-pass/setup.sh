@@ -29,4 +29,6 @@ make install
 export PATH=/srv/shared_directory/llvm/3.4-install/install/bin/:$PATH
 
 # Run the test pass
-opt -load ../opt/lib/libHello.so -hello /srv/shared_directory/llvm/test_codes/example1.bc -o example1.hello.bc
+
+opt -load ../opt/lib/libHello.so -hello ../../test_codes/example1.bc -o ../../example1.hello.bc -debug
+

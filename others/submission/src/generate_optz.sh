@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Set the directory containing test bytecode files
-TEST_BC_DIR="./test_bc"
+TEST_BC_DIR="./test_bc/Function-inlining/"
 
 # Set the directory to store the optimized bytecode files
 OPTZ_BC_DIR="./optz_bc"

@@ -4,8 +4,8 @@ set -e  # Exit on error
 
 # Define variables for better readability
 OBJ_DIR="$(realpath ../../infrastructure-to-write-your-own-pass/xyz/obj)"
-INPUT_BC_DIR="$(realpath ../input/test_bc)"
-OUTPUT_BC_DIR="$(realpath ../output/optz_bc)"
+INPUT_BC_DIR="$(realpath ../input/test_bc/Function-inlining)"
+OUTPUT_BC_DIR="$(realpath ../output/optz_bc/Function-inlining)"
 
 #PASS_NAME="-function-instantiation"
 PASS_NAME="-hello"
